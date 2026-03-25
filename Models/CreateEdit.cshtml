@@ -1,0 +1,26 @@
+﻿@model WebApplication2.Models.VideojuegoViewModel
+
+<h2>Crear Juego</h2>
+
+<form asp-action="Save" method="post" enctype="multipart/form-data">
+
+	<input type="hidden" asp-for="Id" />
+
+	<div>
+		<label>Titulo</label>
+		<input asp-for="Titulo" class="form-control" />
+	</div>
+
+	<div>
+		<label>Descripcion</label>
+<textarea asp-for="Descripcion" class="form-control"></textarea>
+	</div>
+
+	<div>
+		<label>Imagen</label>
+		<input type="file" name="imagenFile" class="form-control" />
+	</div>
+
+	<button type="submit">Guardar</button>
+
+</form>

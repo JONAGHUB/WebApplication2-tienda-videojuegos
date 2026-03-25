@@ -1,0 +1,20 @@
+﻿@{
+    ViewData["Title"] = "Home";
+}
+
+<h1>Sistema WebApplication2</h1>
+
+<p>Proyecto MVC + API funcionando correctamente</p>
+
+<hr />
+
+@if (User?.Identity?.IsAuthenticated ?? false)
+{
+    <p>Bienvenido, @User.Identity.Name!</p>
+}
+else
+{
+    <a asp-controller="Account" asp-action="Login" class="btn btn-primary">Iniciar Sesión</a>
+}
+
+

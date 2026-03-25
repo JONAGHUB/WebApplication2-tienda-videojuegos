@@ -1,0 +1,86 @@
+@model WebApplication2.Models.VideojuegoViewModel
+@{
+    ViewData["Title"] = Model.Titulo;
+    var reviews = ViewBag.Reviews as List<WebApplication2.Models.ReviewViewModel> ?? new List<WebApplication2.Models.ReviewViewModel>();
+    double average = ViewBag.Average ?? 0.0;
+}
+
+<div class="row">
+    <div class="col-md-5">
+        <img src="@Model.ImagenUrl" class="img-fluid rounded" alt="@Model.Titulo" />
+    </div>
+
+    <div class="col-md-7">
+        <h2>@Model.Titulo</h2>
+        <p class="text-muted">@Model.Genero — @Model.Plataforma</p>
+
+        <div class="mb-2">
+            @await Html.PartialAsync("_StarRating", average)
+        </div>
+
+        <p class="lead text-primary">@Model.Precio.ToString("C")</p>
+
+        <p>@Model.Descripcion</p>
+
+        <div class="d-flex gap-2 mb-3">
+            <form asp-controller="Cart" asp-action="Add" method="post" class="d-flex gap-2">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="id" value="@Model.Id" />
+                <input type="number" name="cantidad" value="1" min="1" class="form-control w-25" />
+                <button type="submit" class="btn btn-success" @(Model.Stock <= 0 ? "disabled" : "")>Añadir al carrito</button>
+            </form>
+
+            <a asp-controller="Games" asp-action="Index" class="btn btn-link">Seguir buscando</a>
+        </div>
+
+        <!-- Formulario de valoración -->
+        <div class="card mt-4">
+            <div class="card-body">
+                <h5 class="card-title">Valora este juego</h5>
+                <form asp-controller="Games" asp-action="Rate" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="id" value="@Model.Id" />
+                    <div class="mb-2">
+                        <label class="form-label">Puntuación</label>
+                        <select name="score" class="form-select w-25" required>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3" selected>3</option>
+                            <option value="4">4</option>
+                            <option value="5">5</option>
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Comentario (opcional)</label>
+                        <textarea name="comment" class="form-control" rows="3"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-outline-primary">Enviar valoración</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Reseñas -->
+        <div class="mt-4">
+            <h5>Reseñas (@reviews.Count)</h5>
+
+            @if (!reviews.Any())
+            {
+                <div class="text-muted">Aún no hay reseñas. Sé el primero en valorar.</div>
+            }
+
+            @foreach (var r in reviews)
+            {
+                <div class="border rounded p-3 mb-2">
+                    <div class="d-flex justify-content-between">
+                        <div><strong>@r.UsuarioNombre</strong></div>
+                        <div class="text-muted small">@r.Fecha.ToLocalTime().ToString("g")</div>
+                    </div>
+                    <div class="mt-1">
+                        @await Html.PartialAsync("_StarRating", (double)r.Calificacion)
+                    </div>
+                    <p class="mt-2 mb-0">@r.Comentario</p>
+                </div>
+            }
+        </div>
+    </div>
+</div>
