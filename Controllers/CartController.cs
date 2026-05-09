@@ -6,7 +6,9 @@ using WebApplication2.Models;
 
 namespace WebApplication2.Controllers
 {
-    public class CartController : Controller
+    [Route("api/[controller]")]
+    [ApiController]
+    public class CartController : ControllerBase
     {
         private readonly SistemaJuegosDbContext _db;
         private const string SessionCartKey = "cart.items";
@@ -16,55 +18,74 @@ namespace WebApplication2.Controllers
             _db = db;
         }
 
-        // GET: /Cart
-        public IActionResult Index()
+        // GET: api/Cart
+        [HttpGet]
+        public IActionResult GetCart()
         {
             var cart = HttpContext.Session.GetObject<List<CartItem>>(SessionCartKey) ?? new List<CartItem>();
-            return View(cart);
+            return Ok(cart);
         }
 
-        // POST: /Cart/Add
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Add(int id, int cantidad = 1)
+        // POST: api/Cart/Add
+        [HttpPost("Add")]
+        public async Task<IActionResult> Add([FromBody] AddToCartRequest request)
         {
-            var juego = await _db.Videojuegos.FindAsync(id);
-            if (juego == null) return NotFound();
+            var juego = await _db.Videojuegos.FindAsync(request.Id);
+            if (juego == null) 
+                return NotFound(new { message = "Juego no encontrado" });
 
-            // Convertir valores nullable a tipos seguros
             decimal precio = juego.Precio ?? 0m;
             string titulo = juego.Titulo ?? string.Empty;
 
             var cart = HttpContext.Session.GetObject<List<CartItem>>(SessionCartKey) ?? new List<CartItem>();
-            var existing = cart.FirstOrDefault(c => c.VideojuegoId == id);
+            var existing = cart.FirstOrDefault(c => c.VideojuegoId == request.Id);
+            
             if (existing != null)
             {
-                existing.Cantidad += cantidad;
+                existing.Cantidad += request.Cantidad;
             }
             else
             {
                 cart.Add(new CartItem
                 {
-                    VideojuegoId = id,
+                    VideojuegoId = request.Id,
                     Titulo = titulo,
                     Precio = precio,
-                    Cantidad = cantidad
+                    Cantidad = request.Cantidad
                 });
             }
 
             HttpContext.Session.SetObject(SessionCartKey, cart);
-            return RedirectToAction("Index", "Cart");
+            return Ok(new { message = "Añadido al carrito", cart });
         }
 
-        // POST: /Cart/Remove
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public IActionResult Remove(int id)
+        // POST: api/Cart/Remove
+        [HttpPost("Remove")]
+        public IActionResult Remove([FromBody] RemoveFromCartRequest request)
         {
             var cart = HttpContext.Session.GetObject<List<CartItem>>(SessionCartKey) ?? new List<CartItem>();
-            cart.RemoveAll(c => c.VideojuegoId == id);
+            cart.RemoveAll(c => c.VideojuegoId == request.Id);
             HttpContext.Session.SetObject(SessionCartKey, cart);
-            return RedirectToAction("Index");
+            return Ok(new { message = "Eliminado del carrito", cart });
         }
+
+        // POST: api/Cart/Clear
+        [HttpPost("Clear")]
+        public IActionResult Clear()
+        {
+            HttpContext.Session.Remove(SessionCartKey);
+            return Ok(new { message = "Carrito vaciado" });
+        }
+    }
+
+    public class AddToCartRequest
+    {
+        public int Id { get; set; }
+        public int Cantidad { get; set; } = 1;
+    }
+
+    public class RemoveFromCartRequest
+    {
+        public int Id { get; set; }
     }
 }

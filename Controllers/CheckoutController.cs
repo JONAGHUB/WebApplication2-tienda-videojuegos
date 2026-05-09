@@ -1,12 +1,17 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using WebApplication2.Data;
 using WebApplication2.Helpers;
 using WebApplication2.Models;
 
 namespace WebApplication2.Controllers
 {
-    public class CheckoutController : Controller
+    [Route("api/[controller]")]
+    [ApiController]
+    [Authorize]
+    public class CheckoutController : ControllerBase
     {
         private readonly SistemaJuegosDbContext _db;
         private const string SessionCartKey = "cart.items";
@@ -16,73 +21,60 @@ namespace WebApplication2.Controllers
             _db = db;
         }
 
-        // GET: /Checkout
-        // Mapa simple a VideojuegoViewModel para la vista resumen
-        public IActionResult Index()
+        // GET: api/Checkout
+        [HttpGet]
+        public IActionResult GetCheckoutData()
         {
             var cart = HttpContext.Session.GetObject<List<CartItem>>(SessionCartKey) ?? new List<CartItem>();
-            var vm = cart.Select(c => new VideojuegoViewModel
-            {
-                Id = c.VideojuegoId,
-                Titulo = c.Titulo,
-                Precio = c.Precio,
-                Stock = 0
-            }).ToList();
 
-            return View(vm);
+            if (!cart.Any())
+                return BadRequest(new { message = "El carrito está vacío" });
+
+            var total = cart.Sum(item => item.Precio * item.Cantidad);
+
+            return Ok(new { cart, total });
         }
 
-        // POST: /Checkout/Confirm
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Confirm(string nombre, string direccion, string metodo)
+        // POST: api/Checkout/Process
+        [HttpPost("Process")]
+        public async Task<IActionResult> Process()
         {
             var cart = HttpContext.Session.GetObject<List<CartItem>>(SessionCartKey) ?? new List<CartItem>();
-            if (!cart.Any()) return RedirectToAction("Index", "Cart");
 
-            using var tx = await _db.Database.BeginTransactionAsync();
-            try
+            if (!cart.Any())
+                return BadRequest(new { message = "El carrito está vacío" });
+
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim))
+                return Unauthorized();
+
+            int usuarioId = int.Parse(userIdClaim);
+
+            foreach (var item in cart)
             {
-                foreach (var item in cart)
+                var compra = new Compra
                 {
-                    var juego = await _db.Videojuegos.FindAsync(item.VideojuegoId);
-                    if (juego == null) continue;
+                    UsuarioId = usuarioId,
+                    VideojuegoId = item.VideojuegoId,
+                    Cantidad = item.Cantidad,
+                    PrecioCompra = item.Precio,
+                    Total = item.Precio * item.Cantidad,
+                    Fecha = DateTime.Now,
+                    CodigoQr = string.Empty
+                };
+                _db.Compras.Add(compra);
 
-                    // Convertir nullable a valores seguros
-                    decimal precio = juego.Precio ?? 0m;
-                    int stockActual = juego.Stock ?? 0;
-
-                    // Reducir stock si aplica
-                    juego.Stock = Math.Max(0, stockActual - item.Cantidad);
-
-                    var compra = new Compra
-                    {
-                        UsuarioId = 0, // asignar usuario real
-                        VideojuegoId = juego.Id,
-                        PrecioCompra = precio,
-                        Cantidad = item.Cantidad,
-                        Total = precio * item.Cantidad,
-                        CodigoQr = string.Empty,
-                        Fecha = DateTime.UtcNow
-                    };
-
-                    _db.Compras.Add(compra);
+                var juego = await _db.Videojuegos.FindAsync(item.VideojuegoId);
+                if (juego != null && juego.Stock.HasValue)
+                {
+                    juego.Stock -= item.Cantidad;
                 }
-
-                await _db.SaveChangesAsync();
-                await tx.CommitAsync();
-
-                // Vaciar carrito
-                HttpContext.Session.Remove(SessionCartKey);
-
-                return RedirectToAction("Index", "Home");
             }
-            catch
-            {
-                await tx.RollbackAsync();
-                ModelState.AddModelError(string.Empty, "Error al procesar la compra.");
-                return RedirectToAction("Index");
-            }
+
+            await _db.SaveChangesAsync();
+            HttpContext.Session.Remove(SessionCartKey);
+
+            return Ok(new { message = "Compra realizada exitosamente" });
         }
     }
 }

@@ -4,47 +4,70 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace WebApplication2.Models
 {
-    [Table("videojuegos")]
+    [Table("Videojuegos")]
     public class Videojuego
     {
         [Key]
-        [Column("id")]
+        [Column("Id")]
         public int Id { get; set; }
 
-        [Column("titulo")]
+        [Column("Titulo")]
+        [MaxLength(255)]
         public string? Titulo { get; set; }
 
-        [Column("descripcion")]
+        [Column("Descripcion")]
         public string? Descripcion { get; set; }
 
-        [Column("genero")]
+        [Column("Genero")]
+        [MaxLength(100)]
         public string? Genero { get; set; }
 
-        [Column("plataforma")]
+        [Column("Plataforma")]
+        [MaxLength(100)]
         public string? Plataforma { get; set; }
 
-        [Column("precio")]
+        [Column("Precio", TypeName = "decimal(10,2)")]
         public decimal? Precio { get; set; }
 
         [Column("imagen_url")]
+        [MaxLength(500)]
         public string? ImagenUrl { get; set; }
 
         [Column("video_url")]
+        [MaxLength(500)]
         public string? VideoUrl { get; set; }
 
-        [Column("stock")]
+        [Column("Stock")]
         public int? Stock { get; set; }
 
-        [Column("puntaje_promedio")]
+        [Column("PuntajePromedio", TypeName = "decimal(3,2)")]
         public double? PuntajePromedio { get; set; }
 
-        [Column("fecha_lanzamiento")]
+        [Column("TotalResenas")]
+        public int TotalResenas { get; set; }
+
+        [Column("Calidad")]
+        [MaxLength(50)]
+        public string? Calidad { get; set; }
+
+        [Column("TotalVendidas")]
+        public int TotalVendidas { get; set; }
+
+        [Column("IngresosTotales", TypeName = "decimal(15,2)")]
+        public decimal IngresosTotales { get; set; }
+
+        [Column("EstadoStock")]
+        [MaxLength(20)]
+        public string? EstadoStock { get; set; }
+
+        [Column("FechaLanzamiento")]
         public DateTime? FechaLanzamiento { get; set; }
 
-        [Column("desarrolladora")]
+        [Column("Desarrolladora")]
+        [MaxLength(255)]
         public string? Desarrolladora { get; set; }
 
-        [Column("fecha_creacion")]
+        [Column("FechaCreacion")]
         public DateTime? FechaCreacion { get; set; }
     }
 }

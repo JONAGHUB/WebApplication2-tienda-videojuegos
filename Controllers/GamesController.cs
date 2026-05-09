@@ -1,4 +1,3 @@
-
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WebApplication2.Data;
@@ -83,14 +82,14 @@ namespace WebApplication2.Controllers
                 PuntajePromedio = item.PuntajePromedio ?? 0.0
             };
 
-            // Cargar reseñas y nombres (manejar nulls)
-            var reseñas = await _db.Reseñas
+            // Cargar reseñas y nombres (manejar nulls) — usar DbSet Resenas (modelo Resena)
+            var resenas = await _db.Resenas
                 .Where(r => r.VideojuegoId == id)
-                .OrderByDescending(r => r.Fecha)
+                .OrderByDescending(r => r.FechaCreacion)
                 .ToListAsync();
 
             var reviewVms = new List<ReviewViewModel>();
-            foreach (var r in reseñas)
+            foreach (var r in resenas)
             {
                 string usuarioNombre = "Anónimo";
                 if (r.UsuarioId != 0)
@@ -102,9 +101,9 @@ namespace WebApplication2.Controllers
 
                 reviewVms.Add(new ReviewViewModel
                 {
-                    Calificacion = r.Calificacion,
+                    Calificacion = r.Puntuacion,
                     Comentario = r.Comentario ?? string.Empty,
-                    Fecha = r.Fecha,
+                    Fecha = r.FechaCreacion,
                     UsuarioNombre = usuarioNombre
                 });
             }
@@ -132,20 +131,24 @@ namespace WebApplication2.Controllers
             var juego = await _db.Videojuegos.FindAsync(id);
             if (juego == null) return NotFound();
 
-            var reseña = new Reseña
+            // Usar el modelo Resena (sin tilde) y sus propiedades reales
+            var resena = new Resena
             {
                 VideojuegoId = id,
                 UsuarioId = User?.Identity?.IsAuthenticated == true ? GetCurrentUserId() : 0,
-                Calificacion = score,
+                Puntuacion = score,
                 Comentario = comment ?? string.Empty,
-                Fecha = DateTime.UtcNow
+                FechaCreacion = DateTime.UtcNow
             };
 
-            _db.Reseñas.Add(reseña);
+            _db.Resenas.Add(resena);
             await _db.SaveChangesAsync();
 
-            // Recalcular puntaje promedio seguro
-            var avg = await _db.Reseñas.Where(r => r.VideojuegoId == id).AverageAsync(r => (double?)r.Calificacion) ?? score;
+            // Recalcular puntaje promedio seguro (usar DbSet Resenas)
+            var avg = await _db.Resenas
+                .Where(r => r.VideojuegoId == id)
+                .AverageAsync(r => (double?)r.Puntuacion) ?? score;
+
             juego.PuntajePromedio = avg;
             await _db.SaveChangesAsync();
 

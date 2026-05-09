@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WebApplication2.Data;
@@ -5,7 +6,10 @@ using WebApplication2.Models;
 
 namespace WebApplication2.Controllers
 {
-    public class AdminController : Controller
+    [Route("api/[controller]")]
+    [ApiController]
+    [Authorize(Roles = "Admin")]
+    public class AdminController : ControllerBase
     {
         private readonly SistemaJuegosDbContext _db;
 
@@ -14,7 +18,8 @@ namespace WebApplication2.Controllers
             _db = db;
         }
 
-        // GET: /Admin/Inventory
+        // GET: api/Admin/Inventory
+        [HttpGet("Inventory")]
         public async Task<IActionResult> Inventory()
         {
             var list = await _db.Videojuegos.OrderBy(v => v.Titulo).ToListAsync();
@@ -31,92 +36,96 @@ namespace WebApplication2.Controllers
                 PuntajePromedio = v.PuntajePromedio ?? 0.0
             });
 
-            return View(vm);
+            return Ok(vm);
         }
 
-        // GET: /Admin/Create
-        public IActionResult Create()
+        // POST: api/Admin/Create
+        [HttpPost("Create")]
+        public async Task<IActionResult> Create([FromBody] VideojuegoViewModel model)
         {
-            return View("CreateEdit", new VideojuegoViewModel());
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var v = new Videojuego
+            {
+                Titulo = model.Titulo,
+                Descripcion = model.Descripcion,
+                Genero = model.Genero,
+                Plataforma = model.Plataforma,
+                Precio = model.Precio,
+                ImagenUrl = model.ImagenUrl,
+                Stock = model.Stock,
+                PuntajePromedio = model.PuntajePromedio,
+                FechaCreacion = DateTime.Now
+            };
+
+            _db.Videojuegos.Add(v);
+            await _db.SaveChangesAsync();
+
+            return Ok(new { message = "Juego creado exitosamente", id = v.Id });
         }
 
-        // GET: /Admin/Edit/5
+        // GET: api/Admin/Edit/5
+        [HttpGet("Edit/{id}")]
         public async Task<IActionResult> Edit(int id)
         {
             var v = await _db.Videojuegos.FindAsync(id);
-            if (v == null) return NotFound();
+            if (v == null) 
+                return NotFound(new { message = "Juego no encontrado" });
 
             var vm = new VideojuegoViewModel
             {
                 Id = v.Id,
                 Titulo = v.Titulo ?? string.Empty,
                 Descripcion = v.Descripcion ?? string.Empty,
-                Plataforma = v.Plataforma ?? string.Empty,
                 Genero = v.Genero ?? string.Empty,
+                Plataforma = v.Plataforma ?? string.Empty,
                 Precio = v.Precio ?? 0m,
-                ImagenUrl = string.IsNullOrWhiteSpace(v.ImagenUrl) ? "/images/placeholder.png" : v.ImagenUrl!,
+                ImagenUrl = v.ImagenUrl ?? string.Empty,
                 Stock = v.Stock ?? 0,
                 PuntajePromedio = v.PuntajePromedio ?? 0.0
             };
 
-            return View("CreateEdit", vm);
+            return Ok(vm);
         }
 
-        // POST: /Admin/Save
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Save(VideojuegoViewModel model)
+        // PUT: api/Admin/Update
+        [HttpPut("Update")]
+        public async Task<IActionResult> Update([FromBody] VideojuegoViewModel model)
         {
-            if (!ModelState.IsValid) return View("CreateEdit", model);
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
 
-            if (model.Id > 0)
-            {
-                var exist = await _db.Videojuegos.FindAsync(model.Id);
-                if (exist == null) return NotFound();
+            var v = await _db.Videojuegos.FindAsync(model.Id);
+            if (v == null)
+                return NotFound(new { message = "Juego no encontrado" });
 
-                exist.Titulo = model.Titulo;
-                exist.Descripcion = model.Descripcion;
-                exist.Genero = model.Genero;
-                exist.Plataforma = model.Plataforma;
-                exist.Precio = model.Precio;
-                exist.ImagenUrl = model.ImagenUrl;
-                exist.Stock = model.Stock;
-                exist.PuntajePromedio = model.PuntajePromedio;
-                await _db.SaveChangesAsync();
-            }
-            else
-            {
-                var nuevo = new Videojuego
-                {
-                    Titulo = model.Titulo,
-                    Descripcion = model.Descripcion,
-                    Genero = model.Genero,
-                    Plataforma = model.Plataforma,
-                    Precio = model.Precio,
-                    ImagenUrl = model.ImagenUrl,
-                    Stock = model.Stock,
-                    PuntajePromedio = model.PuntajePromedio,
-                    FechaCreacion = DateTime.UtcNow
-                };
-                _db.Videojuegos.Add(nuevo);
-                await _db.SaveChangesAsync();
-            }
+            v.Titulo = model.Titulo;
+            v.Descripcion = model.Descripcion;
+            v.Genero = model.Genero;
+            v.Plataforma = model.Plataforma;
+            v.Precio = model.Precio;
+            v.ImagenUrl = model.ImagenUrl;
+            v.Stock = model.Stock;
+            v.PuntajePromedio = model.PuntajePromedio;
 
-            return RedirectToAction("Inventory");
-        }
-
-        // POST: /Admin/Restock
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Restock(int id, int cantidad = 10)
-        {
-            var v = await _db.Videojuegos.FindAsync(id);
-            if (v == null) return NotFound();
-
-            v.Stock = (v.Stock ?? 0) + cantidad;
             await _db.SaveChangesAsync();
 
-            return RedirectToAction("Inventory");
+            return Ok(new { message = "Juego actualizado exitosamente" });
+        }
+
+        // DELETE: api/Admin/Delete/5
+        [HttpDelete("Delete/{id}")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var v = await _db.Videojuegos.FindAsync(id);
+            if (v == null)
+                return NotFound(new { message = "Juego no encontrado" });
+
+            _db.Videojuegos.Remove(v);
+            await _db.SaveChangesAsync();
+
+            return Ok(new { message = "Juego eliminado exitosamente" });
         }
     }
 }

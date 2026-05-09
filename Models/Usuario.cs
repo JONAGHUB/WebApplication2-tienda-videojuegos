@@ -10,6 +10,6 @@ namespace WebApplication2.Models
         public string Correo { get; set; } = string.Empty;
         public string Contrasena { get; set; } = string.Empty;
         public string Rol { get; set; } = string.Empty;
-        public DateTime FechaCreacion { get; set; }
+        public DateTime? FechaCreacion { get; set; }
     }
 }

@@ -8,7 +8,9 @@ using WebApplication2.Models;
 
 namespace WebApplication2.Controllers
 {
-    public class AccountController : Controller
+    [Route("api/[controller]")]
+    [ApiController]
+    public class AccountController : ControllerBase
     {
         private readonly SistemaJuegosDbContext _db;
 
@@ -17,29 +19,28 @@ namespace WebApplication2.Controllers
             _db = db;
         }
 
-        // GET: /Account/Login
-        [HttpGet]
-        public IActionResult Login(string? returnUrl = null)
+        // POST: api/Account/Login
+        [HttpPost("Login")]
+        public async Task<IActionResult> Login([FromBody] LoginViewModel model)
         {
-            var vm = new LoginViewModel { ReturnUrl = returnUrl ?? Url.Content("~/") };
-            return View(vm);
-        }
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
 
-        // POST: /Account/Login
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Login(LoginViewModel model)
-        {
-            if (!ModelState.IsValid) return View(model);
+            // DEBUG: Ver qué usuarios existen
+            var todosUsuarios = await _db.Usuarios.ToListAsync();
+            Console.WriteLine($"Usuarios en BD: {todosUsuarios.Count}");
+            foreach (var u in todosUsuarios)
+            {
+                Console.WriteLine($"- {u.Correo} / {u.Contrasena}");
+            }
 
-            // Autenticación simple: buscar usuario en la tabla Usuarios
             var usuario = await _db.Usuarios
                 .FirstOrDefaultAsync(u => u.Correo == model.Correo && u.Contrasena == model.Contrasena);
 
             if (usuario == null)
             {
-                ModelState.AddModelError(string.Empty, "Credenciales inválidas.");
-                return View(model);
+                Console.WriteLine($"Login fallido para: {model.Correo} / {model.Contrasena}");
+                return Unauthorized(new { message = "Credenciales inválidas" });
             }
 
             var name = string.IsNullOrWhiteSpace(usuario.Nombre) ? usuario.Correo : usuario.Nombre;
@@ -57,21 +58,21 @@ namespace WebApplication2.Controllers
 
             await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
 
-            if (!string.IsNullOrWhiteSpace(model.ReturnUrl) && Url.IsLocalUrl(model.ReturnUrl))
+            return Ok(new
             {
-                return Redirect(model.ReturnUrl);
-            }
-
-            return RedirectToAction("Index", "Home");
+                id = usuario.Id,
+                nombre = usuario.Nombre,
+                correo = usuario.Correo,
+                rol = usuario.Rol
+            });
         }
 
-        // POST: /Account/Logout
-        [HttpPost]
-        [ValidateAntiForgeryToken]
+        // POST: api/Account/Logout
+        [HttpPost("Logout")]
         public async Task<IActionResult> Logout()
         {
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-            return RedirectToAction("Index", "Home");
+            return Ok(new { message = "Sesión cerrada" });
         }
     }
 }
